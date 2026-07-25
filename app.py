@@ -29,7 +29,7 @@ PRODUTOS = [
     "Refrigerante em Lata",
     "Suco à Parte",
     "Combo de Carne",
-    "Combo de Frango"
+    "Combo de Frango",
 ]
 
 COMBOS = ["Combo de Carne", "Combo de Frango"]
@@ -59,10 +59,11 @@ def init_db():
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS pedidos (
-            numero  INTEGER PRIMARY KEY,
-            cliente TEXT    NOT NULL,
-            hora    TEXT    NOT NULL,
-            status  TEXT    NOT NULL
+            numero    INTEGER PRIMARY KEY,
+            cliente   TEXT    NOT NULL,
+            hora      TEXT    NOT NULL,
+            status    TEXT    NOT NULL,
+            observacao TEXT   NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS itens (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,8 +102,8 @@ STATUS_ENTREGUE = "ENTREGUE"
 # WEBSOCKET
 # ============================================================
 
-class ConnectionManager:
 
+class ConnectionManager:
     def __init__(self):
         self.connections = []
 
@@ -121,7 +122,6 @@ class ConnectionManager:
         remover = []
 
         for connection in self.connections:
-
             try:
                 await connection.send_text(mensagem)
 
@@ -138,6 +138,7 @@ manager = ConnectionManager()
 # ============================================================
 # FUNÇÕES DO BANCO
 # ============================================================
+
 
 def horario():
     return datetime.now().strftime("%H:%M")
@@ -156,10 +157,12 @@ def gerar_numero(db):
     return numero
 
 
-def criar_pedido(cliente, itens, db):
+def criar_pedido(cliente, itens, observacao, db):
     cliente = cliente.strip()
     if cliente == "":
         cliente = "Não informado"
+
+    observacao = observacao.strip()
 
     numero = gerar_numero(db)
     if numero is None:
@@ -168,8 +171,8 @@ def criar_pedido(cliente, itens, db):
     hora = horario()
 
     db.execute(
-        "INSERT INTO pedidos (numero, cliente, hora, status) VALUES (?, ?, ?, ?)",
-        (numero, cliente, hora, STATUS_AGUARDANDO)
+        "INSERT INTO pedidos (numero, cliente, hora, status, observacao) VALUES (?, ?, ?, ?, ?)",
+        (numero, cliente, hora, STATUS_AGUARDANDO, observacao),
     )
 
     for item in itens:
@@ -177,7 +180,7 @@ def criar_pedido(cliente, itens, db):
             descricao = item.get("descricao", "")
             db.execute(
                 "INSERT INTO itens (numero_pedido, produto, quantidade, descricao) VALUES (?, ?, ?, ?)",
-                (numero, item["produto"], item["quantidade"], descricao)
+                (numero, item["produto"], item["quantidade"], descricao),
             )
 
     db.commit()
@@ -187,7 +190,8 @@ def criar_pedido(cliente, itens, db):
         "cliente": cliente,
         "hora": hora,
         "status": STATUS_AGUARDANDO,
-        "itens": itens
+        "observacao": observacao,
+        "itens": itens,
     }
 
 
@@ -197,7 +201,8 @@ def localizar_pedido(numero, db):
         return None
 
     itens_rows = db.execute(
-        "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?", (numero,)
+        "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?",
+        (numero,),
     ).fetchall()
 
     return {
@@ -205,7 +210,15 @@ def localizar_pedido(numero, db):
         "cliente": row["cliente"],
         "hora": row["hora"],
         "status": row["status"],
-        "itens": [{"produto": r["produto"], "quantidade": r["quantidade"], "descricao": r["descricao"]} for r in itens_rows]
+        "observacao": row["observacao"],
+        "itens": [
+            {
+                "produto": r["produto"],
+                "quantidade": r["quantidade"],
+                "descricao": r["descricao"],
+            }
+            for r in itens_rows
+        ],
     }
 
 
@@ -216,19 +229,32 @@ def remover_pedido(numero, db):
 
 
 def listar_pedidos(db):
-    rows = db.execute("SELECT * FROM pedidos WHERE status != ?", (STATUS_ENTREGUE,)).fetchall()
+    rows = db.execute(
+        "SELECT * FROM pedidos WHERE status != ?", (STATUS_ENTREGUE,)
+    ).fetchall()
     resultado = []
     for row in rows:
         itens_rows = db.execute(
-            "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?", (row["numero"],)
+            "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?",
+            (row["numero"],),
         ).fetchall()
-        resultado.append({
-            "numero": row["numero"],
-            "cliente": row["cliente"],
-            "hora": row["hora"],
-            "status": row["status"],
-            "itens": [{"produto": r["produto"], "quantidade": r["quantidade"], "descricao": r["descricao"]} for r in itens_rows]
-        })
+        resultado.append(
+            {
+                "numero": row["numero"],
+                "cliente": row["cliente"],
+                "hora": row["hora"],
+                "status": row["status"],
+                "observacao": row["observacao"],
+                "itens": [
+                    {
+                        "produto": r["produto"],
+                        "quantidade": r["quantidade"],
+                        "descricao": r["descricao"],
+                    }
+                    for r in itens_rows
+                ],
+            }
+        )
     return resultado
 
 
@@ -236,97 +262,50 @@ def listar_pedidos(db):
 # ROTAS HTML
 # ============================================================
 
+
 @app.get("/", response_class=HTMLResponse)
 async def atendente(request: Request):
 
     return templates.TemplateResponse(
-
-        "atendente.html",
-
-        {
-
-            "request": request,
-
-            "produtos": PRODUTOS,
-
-            "combos": COMBOS
-
-        }
-
+        "atendente.html", {"request": request, "produtos": PRODUTOS, "combos": COMBOS}
     )
 
 
 @app.get("/cozinha", response_class=HTMLResponse)
 async def cozinha(request: Request):
 
-    return templates.TemplateResponse(
-
-        "cozinha.html",
-
-        {
-
-            "request": request
-
-        }
-
-    )
+    return templates.TemplateResponse("cozinha.html", {"request": request})
 
 
 @app.get("/painel", response_class=HTMLResponse)
 async def painel(request: Request):
 
-    return templates.TemplateResponse(
+    return templates.TemplateResponse("painel.html", {"request": request})
 
-        "painel.html",
-
-        {
-
-            "request": request
-
-        }
-
-    )
 
 # ============================================================
 # AÇÕES DOS PEDIDOS
 # ============================================================
+
 
 async def enviar_lista(websocket: WebSocket):
 
     db = get_db()
     pedidos = listar_pedidos(db)
 
-    await websocket.send_text(
-
-        json.dumps({
-
-            "tipo": "lista",
-
-            "pedidos": pedidos
-
-        })
-
-    )
+    await websocket.send_text(json.dumps({"tipo": "lista", "pedidos": pedidos}))
 
 
-async def novo_pedido(cliente, itens):
+async def novo_pedido(cliente, itens, observacao):
 
     db = get_db()
-    pedido = criar_pedido(cliente, itens, db)
+    pedido = criar_pedido(cliente, itens, observacao, db)
 
     if pedido is None:
-        await manager.broadcast({
-            "tipo": "limite"
-        })
+        await manager.broadcast({"tipo": "limite"})
         return
 
-    await manager.broadcast({
-
-        "tipo": "novo",
-
-        "pedido": pedido
-
-    })
+    await manager.broadcast({"tipo": "novo", "pedido": pedido})
 
 
 async def iniciar_preparo(numero):
@@ -337,16 +316,12 @@ async def iniciar_preparo(numero):
     if pedido is None:
         return
 
-    db.execute("UPDATE pedidos SET status = ? WHERE numero = ?", (STATUS_PREPARO, numero))
+    db.execute(
+        "UPDATE pedidos SET status = ? WHERE numero = ?", (STATUS_PREPARO, numero)
+    )
     db.commit()
 
-    await manager.broadcast({
-
-        "tipo": "preparo",
-
-        "numero": numero
-
-    })
+    await manager.broadcast({"tipo": "preparo", "numero": numero})
 
 
 async def marcar_pronto(numero):
@@ -357,16 +332,12 @@ async def marcar_pronto(numero):
     if pedido is None:
         return
 
-    db.execute("UPDATE pedidos SET status = ? WHERE numero = ?", (STATUS_PRONTO, numero))
+    db.execute(
+        "UPDATE pedidos SET status = ? WHERE numero = ?", (STATUS_PRONTO, numero)
+    )
     db.commit()
 
-    await manager.broadcast({
-
-        "tipo": "pronto",
-
-        "numero": numero
-
-    })
+    await manager.broadcast({"tipo": "pronto", "numero": numero})
 
 
 async def entregar_pedido(numero):
@@ -374,18 +345,13 @@ async def entregar_pedido(numero):
     db = get_db()
     remover_pedido(numero, db)
 
-    await manager.broadcast({
-
-        "tipo": "entregue",
-
-        "numero": numero
-
-    })
+    await manager.broadcast({"tipo": "entregue", "numero": numero})
 
 
 # ============================================================
 # WEBSOCKET
 # ============================================================
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -395,9 +361,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await enviar_lista(websocket)
 
     try:
-
         while True:
-
             dados = await websocket.receive_text()
 
             mensagem = json.loads(dados)
@@ -405,42 +369,24 @@ async def websocket_endpoint(websocket: WebSocket):
             tipo = mensagem["tipo"]
 
             if tipo == "novo":
-
                 await novo_pedido(
-
                     mensagem["cliente"],
-
-                    mensagem["itens"]
-
+                    mensagem["itens"],
+                    mensagem.get("observacao", ""),
                 )
 
             elif tipo == "preparo":
-
-                await iniciar_preparo(
-
-                    mensagem["numero"]
-
-                )
+                await iniciar_preparo(mensagem["numero"])
 
             elif tipo == "pronto":
-
-                await marcar_pronto(
-
-                    mensagem["numero"]
-
-                )
+                await marcar_pronto(mensagem["numero"])
 
             elif tipo == "entregue":
-
-                await entregar_pedido(
-
-                    mensagem["numero"]
-
-                )
+                await entregar_pedido(mensagem["numero"])
 
     except WebSocketDisconnect:
-
         manager.disconnect(websocket)
+
 
 # ============================================================
 # OBSERVAÇÕES

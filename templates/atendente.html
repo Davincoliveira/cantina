@@ -54,6 +54,29 @@
                     placeholder="Ex.: João"
                 >
 
+                </input>
+
+            </div>
+
+            <div class="mb-4">
+
+                <label class="form-label">
+
+                    Observação (opcional)
+
+                </label>
+
+                <textarea
+                    id="observacao"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Ex.: Sem cebola, carne bem passada..."
+                ></textarea>
+
+                <small class="text-muted">
+                    Visível apenas para a cozinha
+                </small>
+
             </div>
 
             <hr>
@@ -281,7 +304,9 @@ function enviarPedido() {
 
         cliente: cliente,
 
-        itens: itens
+        itens: itens,
+
+        observacao: document.getElementById("observacao").value.trim()
 
     }));
 
@@ -298,6 +323,8 @@ function enviarPedido() {
 function limparFormulario() {
 
     document.getElementById("cliente").value = "";
+
+    document.getElementById("observacao").value = "";
 
     pedido = {};
 

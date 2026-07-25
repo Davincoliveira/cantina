@@ -105,6 +105,12 @@ function criarCard(pedido) {
 
                 </ul>
 
+                ${pedido.observacao && pedido.observacao.trim() !== "" ? `
+                <div class="observacao-cozinha">
+                    <strong>Obs:</strong> ${pedido.observacao}
+                </div>
+                ` : ""}
+
                 <hr>
 
                 <p>
