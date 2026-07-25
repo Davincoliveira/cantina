@@ -50,9 +50,17 @@ function criarCard(pedido) {
 
     pedido.itens.forEach(function(item){
 
+        let desc = "";
+
+        if (item.descricao && item.descricao.trim() !== "") {
+
+            desc = `<br><small class="text-muted">→ ${item.descricao}</small>`;
+
+        }
+
         itens += `
             <li>
-                ${item.quantidade}x ${item.produto}
+                ${item.quantidade}x ${item.produto}${desc}
             </li>
         `;
 

@@ -103,6 +103,46 @@
 
                 </div>
 
+                {% if produto in combos %}
+
+                <div
+                    id="desc-row-{{ produto }}"
+                    class="row mb-2"
+                    style="display: none;"
+                >
+
+                    <div class="col-6 offset-6">
+
+                        <div class="btn-group btn-group-sm" role="group">
+
+                            <button
+                                type="button"
+                                class="btn btn-outline-primary desc-btn"
+                                data-produto="{{ produto }}"
+                                data-valor="Suco"
+                                onclick="escolherDesc('{{ produto }}', 'Suco', this)"
+                            >
+                                Suco
+                            </button>
+
+                            <button
+                                type="button"
+                                class="btn btn-outline-primary desc-btn"
+                                data-produto="{{ produto }}"
+                                data-valor="Refrigerante"
+                                onclick="escolherDesc('{{ produto }}', 'Refrigerante', this)"
+                            >
+                                Refrigerante
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                {% endif %}
+
                 {% endfor %}
 
             </div>
@@ -133,7 +173,35 @@ const ws = new WebSocket(
     "ws://" + window.location.host + "/ws"
 );
 
+const combos = {{ combos | tojson }};
+
 let pedido = {};
+
+let descricoes = {};
+
+function escolherDesc(produto, valor, btn) {
+
+    descricoes[produto] = valor;
+
+    const grupo = btn.parentElement;
+
+    grupo.querySelectorAll(".desc-btn").forEach(function(b) {
+
+        b.classList.remove("active");
+
+        b.classList.remove("btn-primary");
+
+        b.classList.add("btn-outline-primary");
+
+    });
+
+    btn.classList.add("active");
+
+    btn.classList.remove("btn-outline-primary");
+
+    btn.classList.add("btn-primary");
+
+}
 
 function alterar(produto, valor) {
 
@@ -153,6 +221,14 @@ function alterar(produto, valor) {
 
     document.getElementById(produto).innerText = pedido[produto];
 
+    const descRow = document.getElementById("desc-row-" + produto);
+
+    if (descRow) {
+
+        descRow.style.display = pedido[produto] > 0 ? "" : "none";
+
+    }
+
 }
 
 
@@ -164,11 +240,21 @@ function enviarPedido() {
 
         if (pedido[produto] > 0) {
 
+            let descricao = "";
+
+            if (combos.includes(produto) && descricoes[produto]) {
+
+                descricao = descricoes[produto];
+
+            }
+
             itens.push({
 
                 produto: produto,
 
-                quantidade: pedido[produto]
+                quantidade: pedido[produto],
+
+                descricao: descricao
 
             });
 
@@ -222,6 +308,30 @@ function limparFormulario() {
         span.innerText = "0";
 
     });
+
+    combos.forEach(function(combo) {
+
+        const descRow = document.getElementById("desc-row-" + combo);
+
+        if (descRow) {
+
+            descRow.style.display = "none";
+
+        }
+
+        descRow.querySelectorAll(".desc-btn").forEach(function(b) {
+
+            b.classList.remove("active");
+
+            b.classList.remove("btn-primary");
+
+            b.classList.add("btn-outline-primary");
+
+        });
+
+    });
+
+    descricoes = {};
 
 }
 

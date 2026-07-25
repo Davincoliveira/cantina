@@ -27,11 +27,12 @@ PRODUTOS = [
     "Hambúrguer de Frango",
     "Batata Frita (150g)",
     "Refrigerante em Lata",
-    "Suco Combo",
     "Suco à Parte",
     "Combo de Carne",
     "Combo de Frango"
 ]
+
+COMBOS = ["Combo de Carne", "Combo de Frango"]
 
 
 # ============================================================
@@ -68,6 +69,7 @@ def init_db():
             numero_pedido INTEGER NOT NULL,
             produto       TEXT    NOT NULL,
             quantidade    INTEGER NOT NULL,
+            descricao     TEXT    NOT NULL DEFAULT '',
             FOREIGN KEY (numero_pedido) REFERENCES pedidos(numero) ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS contador (
@@ -172,9 +174,10 @@ def criar_pedido(cliente, itens, db):
 
     for item in itens:
         if item["quantidade"] > 0:
+            descricao = item.get("descricao", "")
             db.execute(
-                "INSERT INTO itens (numero_pedido, produto, quantidade) VALUES (?, ?, ?)",
-                (numero, item["produto"], item["quantidade"])
+                "INSERT INTO itens (numero_pedido, produto, quantidade, descricao) VALUES (?, ?, ?, ?)",
+                (numero, item["produto"], item["quantidade"], descricao)
             )
 
     db.commit()
@@ -194,7 +197,7 @@ def localizar_pedido(numero, db):
         return None
 
     itens_rows = db.execute(
-        "SELECT produto, quantidade FROM itens WHERE numero_pedido = ?", (numero,)
+        "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?", (numero,)
     ).fetchall()
 
     return {
@@ -202,7 +205,7 @@ def localizar_pedido(numero, db):
         "cliente": row["cliente"],
         "hora": row["hora"],
         "status": row["status"],
-        "itens": [{"produto": r["produto"], "quantidade": r["quantidade"]} for r in itens_rows]
+        "itens": [{"produto": r["produto"], "quantidade": r["quantidade"], "descricao": r["descricao"]} for r in itens_rows]
     }
 
 
@@ -217,14 +220,14 @@ def listar_pedidos(db):
     resultado = []
     for row in rows:
         itens_rows = db.execute(
-            "SELECT produto, quantidade FROM itens WHERE numero_pedido = ?", (row["numero"],)
+            "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?", (row["numero"],)
         ).fetchall()
         resultado.append({
             "numero": row["numero"],
             "cliente": row["cliente"],
             "hora": row["hora"],
             "status": row["status"],
-            "itens": [{"produto": r["produto"], "quantidade": r["quantidade"]} for r in itens_rows]
+            "itens": [{"produto": r["produto"], "quantidade": r["quantidade"], "descricao": r["descricao"]} for r in itens_rows]
         })
     return resultado
 
@@ -244,7 +247,9 @@ async def atendente(request: Request):
 
             "request": request,
 
-            "produtos": PRODUTOS
+            "produtos": PRODUTOS,
+
+            "combos": COMBOS
 
         }
 
