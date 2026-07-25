@@ -5,7 +5,7 @@ import os
 import threading
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -34,6 +34,16 @@ PRODUTOS = [
 
 COMBOS = ["Combo de Carne", "Combo de Frango"]
 
+PRECOS = {
+    "Hambúrguer de Carne": 18.00,
+    "Hambúrguer de Frango": 16.00,
+    "Batata Frita (150g)": 8.00,
+    "Refrigerante em Lata": 7.00,
+    "Suco à Parte": 8.00,
+    "Combo de Carne": 28.00,
+    "Combo de Frango": 26.00,
+}
+
 
 # ============================================================
 # BANCO DE DADOS
@@ -59,18 +69,20 @@ def init_db():
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS pedidos (
-            numero    INTEGER PRIMARY KEY,
-            cliente   TEXT    NOT NULL,
-            hora      TEXT    NOT NULL,
-            status    TEXT    NOT NULL,
-            observacao TEXT   NOT NULL DEFAULT ''
+            numero      INTEGER PRIMARY KEY,
+            cliente     TEXT    NOT NULL,
+            hora        TEXT    NOT NULL,
+            status      TEXT    NOT NULL,
+            observacao  TEXT    NOT NULL DEFAULT '',
+            hora_entrega TEXT   DEFAULT NULL
         );
         CREATE TABLE IF NOT EXISTS itens (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero_pedido INTEGER NOT NULL,
-            produto       TEXT    NOT NULL,
-            quantidade    INTEGER NOT NULL,
-            descricao     TEXT    NOT NULL DEFAULT '',
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero_pedido  INTEGER NOT NULL,
+            produto        TEXT    NOT NULL,
+            quantidade     INTEGER NOT NULL,
+            descricao      TEXT    NOT NULL DEFAULT '',
+            preco_unitario REAL    NOT NULL DEFAULT 0,
             FOREIGN KEY (numero_pedido) REFERENCES pedidos(numero) ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS contador (
@@ -81,6 +93,13 @@ def init_db():
     row = conn.execute("SELECT valor FROM contador WHERE id = 1").fetchone()
     if row is None:
         conn.execute("INSERT INTO contador (id, valor) VALUES (1, 1)")
+
+    colunas_itens = [r[1] for r in conn.execute("PRAGMA table_info(itens)")]
+    if "preco_unitario" not in colunas_itens:
+        conn.execute(
+            "ALTER TABLE itens ADD COLUMN preco_unitario REAL NOT NULL DEFAULT 0"
+        )
+
     conn.commit()
     conn.close()
 
@@ -144,6 +163,10 @@ def horario():
     return datetime.now().strftime("%H:%M")
 
 
+def calcular_total(itens):
+    return sum(item["quantidade"] * item["preco_unitario"] for item in itens)
+
+
 def gerar_numero(db):
     row = db.execute("SELECT valor FROM contador WHERE id = 1").fetchone()
     numero = row["valor"]
@@ -175,12 +198,26 @@ def criar_pedido(cliente, itens, observacao, db):
         (numero, cliente, hora, STATUS_AGUARDANDO, observacao),
     )
 
+    itens_salvos = []
+
     for item in itens:
         if item["quantidade"] > 0:
             descricao = item.get("descricao", "")
+            preco_unitario = PRECOS.get(item["produto"], 0)
+
             db.execute(
-                "INSERT INTO itens (numero_pedido, produto, quantidade, descricao) VALUES (?, ?, ?, ?)",
-                (numero, item["produto"], item["quantidade"], descricao),
+                "INSERT INTO itens (numero_pedido, produto, quantidade, descricao, preco_unitario) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (numero, item["produto"], item["quantidade"], descricao, preco_unitario),
+            )
+
+            itens_salvos.append(
+                {
+                    "produto": item["produto"],
+                    "quantidade": item["quantidade"],
+                    "descricao": descricao,
+                    "preco_unitario": preco_unitario,
+                }
             )
 
     db.commit()
@@ -191,7 +228,8 @@ def criar_pedido(cliente, itens, observacao, db):
         "hora": hora,
         "status": STATUS_AGUARDANDO,
         "observacao": observacao,
-        "itens": itens,
+        "itens": itens_salvos,
+        "total": calcular_total(itens_salvos),
     }
 
 
@@ -201,9 +239,19 @@ def localizar_pedido(numero, db):
         return None
 
     itens_rows = db.execute(
-        "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?",
+        "SELECT produto, quantidade, descricao, preco_unitario FROM itens WHERE numero_pedido = ?",
         (numero,),
     ).fetchall()
+
+    itens = [
+        {
+            "produto": r["produto"],
+            "quantidade": r["quantidade"],
+            "descricao": r["descricao"],
+            "preco_unitario": r["preco_unitario"],
+        }
+        for r in itens_rows
+    ]
 
     return {
         "numero": row["numero"],
@@ -211,14 +259,8 @@ def localizar_pedido(numero, db):
         "hora": row["hora"],
         "status": row["status"],
         "observacao": row["observacao"],
-        "itens": [
-            {
-                "produto": r["produto"],
-                "quantidade": r["quantidade"],
-                "descricao": r["descricao"],
-            }
-            for r in itens_rows
-        ],
+        "itens": itens,
+        "total": calcular_total(itens),
     }
 
 
@@ -235,9 +277,18 @@ def listar_pedidos(db):
     resultado = []
     for row in rows:
         itens_rows = db.execute(
-            "SELECT produto, quantidade, descricao FROM itens WHERE numero_pedido = ?",
+            "SELECT produto, quantidade, descricao, preco_unitario FROM itens WHERE numero_pedido = ?",
             (row["numero"],),
         ).fetchall()
+        itens = [
+            {
+                "produto": r["produto"],
+                "quantidade": r["quantidade"],
+                "descricao": r["descricao"],
+                "preco_unitario": r["preco_unitario"],
+            }
+            for r in itens_rows
+        ]
         resultado.append(
             {
                 "numero": row["numero"],
@@ -245,19 +296,54 @@ def listar_pedidos(db):
                 "hora": row["hora"],
                 "status": row["status"],
                 "observacao": row["observacao"],
-                "itens": [
-                    {
-                        "produto": r["produto"],
-                        "quantidade": r["quantidade"],
-                        "descricao": r["descricao"],
-                    }
-                    for r in itens_rows
-                ],
+                "itens": itens,
+                "total": calcular_total(itens),
             }
         )
     return resultado
 
 
+# ============================================================
+# HISTÓRICO
+# ============================================================
+
+
+def listar_historico(db):
+    rows = db.execute(
+        "SELECT * FROM pedidos WHERE status = ? ORDER BY hora_entrega DESC",
+        (STATUS_ENTREGUE,),
+    ).fetchall()
+    resultado = []
+    for row in rows:
+        itens_rows = db.execute(
+            "SELECT produto, quantidade, descricao, preco_unitario FROM itens WHERE numero_pedido = ?",
+            (row["numero"],),
+        ).fetchall()
+        itens = [
+            {
+                "produto": r["produto"],
+                "quantidade": r["quantidade"],
+                "descricao": r["descricao"],
+                "preco_unitario": r["preco_unitario"],
+            }
+            for r in itens_rows
+        ]
+        resultado.append(
+            {
+                "numero": row["numero"],
+                "cliente": row["cliente"],
+                "hora": row["hora"],
+                "hora_entrega": row["hora_entrega"],
+                "observacao": row["observacao"],
+                "itens": itens,
+                "total": calcular_total(itens),
+            }
+        )
+    return resultado
+
+
+# ============================================================
+# ROTAS HTML
 # ============================================================
 # ROTAS HTML
 # ============================================================
@@ -267,7 +353,13 @@ def listar_pedidos(db):
 async def atendente(request: Request):
 
     return templates.TemplateResponse(
-        "atendente.html", {"request": request, "produtos": PRODUTOS, "combos": COMBOS}
+        "atendente.html",
+        {
+            "request": request,
+            "produtos": PRODUTOS,
+            "combos": COMBOS,
+            "precos": PRECOS,
+        },
     )
 
 
@@ -281,6 +373,22 @@ async def cozinha(request: Request):
 async def painel(request: Request):
 
     return templates.TemplateResponse("painel.html", {"request": request})
+
+
+@app.get("/historico", response_class=HTMLResponse)
+async def historico(request: Request):
+    db = get_db()
+    pedidos = listar_historico(db)
+
+    return templates.TemplateResponse(
+        "historico.html", {"request": request, "pedidos": pedidos}
+    )
+
+
+@app.post("/historico/{numero}/restaurar")
+async def restaurar(numero: int):
+    await restaurar_pedido(numero)
+    return RedirectResponse(url="/historico", status_code=303)
 
 
 # ============================================================
@@ -343,9 +451,42 @@ async def marcar_pronto(numero):
 async def entregar_pedido(numero):
 
     db = get_db()
-    remover_pedido(numero, db)
+    pedido = localizar_pedido(numero, db)
 
-    await manager.broadcast({"tipo": "entregue", "numero": numero})
+    if pedido is None:
+        return
+
+    hora_entrega = horario()
+
+    db.execute(
+        "UPDATE pedidos SET status = ?, hora_entrega = ? WHERE numero = ?",
+        (STATUS_ENTREGUE, hora_entrega, numero),
+    )
+    db.commit()
+
+    pedido["status"] = STATUS_ENTREGUE
+    pedido["hora_entrega"] = hora_entrega
+
+    await manager.broadcast({"tipo": "entregue", "numero": numero, "pedido": pedido})
+
+
+async def restaurar_pedido(numero):
+
+    db = get_db()
+    pedido = localizar_pedido(numero, db)
+
+    if pedido is None or pedido["status"] != STATUS_ENTREGUE:
+        return
+
+    db.execute(
+        "UPDATE pedidos SET status = ?, hora_entrega = NULL WHERE numero = ?",
+        (STATUS_PRONTO, numero),
+    )
+    db.commit()
+
+    pedido["status"] = STATUS_PRONTO
+
+    await manager.broadcast({"tipo": "novo", "pedido": pedido})
 
 
 # ============================================================

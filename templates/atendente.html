@@ -12,11 +12,17 @@
     <link href="/static/bootstrap.min.css"
           rel="stylesheet">
 
+    <link rel="stylesheet" href="/static/tokens.css">
     <link rel="stylesheet" href="/static/style.css">
 
 </head>
 
 <body>
+
+<header class="topbar">
+    <span class="topbar__brand">Cantina</span>
+    <span class="topbar__pagina">Novo Pedido</span>
+</header>
 
 <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
     <div id="confirmacao" class="toast align-items-center text-bg-success border-0" role="alert">
@@ -30,10 +36,6 @@
 </div>
 
 <div class="container py-4">
-
-    <h1 class="text-center mb-4">
-        Novo Pedido
-    </h1>
 
     <div class="card shadow">
 
@@ -91,18 +93,27 @@
 
                 {% for produto in produtos %}
 
-                <div class="row align-items-center mb-3">
+                <div
+                    id="linha-{{ produto }}"
+                    class="row align-items-center mb-2 produto-linha"
+                >
 
                     <div class="col-6">
 
                         <strong>{{ produto }}</strong>
+
+                        <div class="produto-preco">
+
+                            R$ {{ ("%.2f" % precos[produto]) | replace(".", ",") }}
+
+                        </div>
 
                     </div>
 
                     <div class="col-6 text-end">
 
                         <button
-                            class="btn btn-danger"
+                            class="btn btn-stepper btn-stepper--menos"
                             onclick="alterar('{{ produto }}', -1)"
                         >
                             −
@@ -110,13 +121,13 @@
 
                         <span
                             id="{{ produto }}"
-                            class="mx-3 fw-bold"
+                            class="produto-qtd"
                         >
                             0
                         </span>
 
                         <button
-                            class="btn btn-success"
+                            class="btn btn-stepper btn-stepper--mais"
                             onclick="alterar('{{ produto }}', 1)"
                         >
                             +
@@ -172,6 +183,14 @@
 
             <hr>
 
+            <div class="pedido-total">
+
+                <span>Total do pedido</span>
+
+                <strong id="total-pedido">R$ 0,00</strong>
+
+            </div>
+
             <button
 
                 class="btn btn-primary btn-lg w-100"
@@ -192,13 +211,33 @@
 
 <script>
 
-const ws = new WebSocket(
-    "ws://" + window.location.host + "/ws"
-);
+let ws;
 
 const combos = {{ combos | tojson }};
 
+const precos = {{ precos | tojson }};
+
 let pedido = {};
+
+function formatarMoeda(valor) {
+
+    return "R$ " + valor.toFixed(2).replace(".", ",");
+
+}
+
+function atualizarTotal() {
+
+    let total = 0;
+
+    for (let produto in pedido) {
+
+        total += pedido[produto] * (precos[produto] || 0);
+
+    }
+
+    document.getElementById("total-pedido").innerText = formatarMoeda(total);
+
+}
 
 let descricoes = {};
 
@@ -243,6 +282,16 @@ function alterar(produto, valor) {
     }
 
     document.getElementById(produto).innerText = pedido[produto];
+
+    const linha = document.getElementById("linha-" + produto);
+
+    if (linha) {
+
+        linha.classList.toggle("produto-linha--ativo", pedido[produto] > 0);
+
+    }
+
+    atualizarTotal();
 
     const descRow = document.getElementById("desc-row-" + produto);
 
@@ -336,6 +385,14 @@ function limparFormulario() {
 
     });
 
+    document.querySelectorAll(".produto-linha--ativo").forEach(function(linha) {
+
+        linha.classList.remove("produto-linha--ativo");
+
+    });
+
+    atualizarTotal();
+
     combos.forEach(function(combo) {
 
         const descRow = document.getElementById("desc-row-" + combo);
@@ -363,38 +420,45 @@ function limparFormulario() {
 }
 
 
-ws.onopen = function() {
+function conectar() {
 
-    console.log("Conectado.");
+    ws = new WebSocket(
+        "ws://" + window.location.host + "/ws"
+    );
 
-};
+    ws.onopen = function() {
 
+        console.log("Conectado.");
 
-ws.onclose = function() {
+    };
 
-    alert("Conexão com o servidor perdida.");
+    ws.onclose = function() {
 
-};
+        setTimeout(conectar, 2000);
 
+    };
 
-ws.onerror = function() {
+    ws.onerror = function() {
 
-    alert("Erro na conexão.");
+        alert("Erro na conexão.");
 
-};
+    };
 
+    ws.onmessage = function(event) {
 
-ws.onmessage = function(event) {
+        const msg = JSON.parse(event.data);
 
-    const msg = JSON.parse(event.data);
+        if (msg.tipo === "limite") {
 
-    if (msg.tipo === "limite") {
+            alert("Limite de 300 pedidos atingido!");
 
-        alert("Limite de 300 pedidos atingido!");
+        }
 
-    }
+    };
 
-};
+}
+
+conectar();
 
 </script>
 

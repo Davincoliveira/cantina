@@ -1,62 +1,209 @@
 body{
 
-    background:#f5f5f5;
+    background: var(--cor-fundo, #f5f5f5);
+    color: var(--cor-texto, #2b2622);
+    font-family: var(--fonte-base, system-ui, sans-serif);
 
 }
 
 .card{
 
-    border-radius:16px;
+    border-radius: var(--raio-borda, 16px);
+    border: 1px solid var(--cor-borda, #e4e0d8);
+    background: var(--cor-card-bg, #fff);
+
+}
+
+.shadow{
+
+    box-shadow: var(--sombra-card, 0 2px 10px rgba(43, 38, 34, .08)) !important;
 
 }
 
 .card-body{
 
-    padding:24px;
+    padding: var(--espaco-lg, 24px);
 
 }
 
 button{
 
-    font-weight:bold;
+    font-weight: bold;
 
 }
 
-.painel{
+.btn{
 
-    background:#212529;
+    min-height: 48px;
+    border-radius: var(--raio-borda-sm, 10px);
+
+}
+
+/* Reskin dos botões do Bootstrap com as cores do projeto,
+   mantendo as mesmas classes usadas nas telas (btn-primary,
+   btn-success, btn-warning, btn-danger, btn-secondary...) */
+
+.btn-primary{
+
+    --bs-btn-bg: var(--cor-primaria);
+    --bs-btn-border-color: var(--cor-primaria);
+    --bs-btn-hover-bg: var(--cor-primaria-escura);
+    --bs-btn-hover-border-color: var(--cor-primaria-escura);
+    --bs-btn-active-bg: var(--cor-primaria-escura);
+    --bs-btn-active-border-color: var(--cor-primaria-escura);
+    --bs-btn-disabled-bg: var(--cor-primaria);
+    --bs-btn-disabled-border-color: var(--cor-primaria);
+
+}
+
+.btn-success{
+
+    --bs-btn-bg: var(--status-pronto);
+    --bs-btn-border-color: var(--status-pronto);
+    --bs-btn-hover-bg: #17703d;
+    --bs-btn-hover-border-color: #17703d;
+    --bs-btn-active-bg: #17703d;
+    --bs-btn-active-border-color: #17703d;
+
+}
+
+.btn-warning{
+
+    --bs-btn-bg: var(--status-preparo);
+    --bs-btn-border-color: var(--status-preparo);
+    --bs-btn-color: #fff;
+    --bs-btn-hover-bg: #a6650c;
+    --bs-btn-hover-border-color: #a6650c;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: #a6650c;
+    --bs-btn-active-border-color: #a6650c;
+    --bs-btn-active-color: #fff;
+
+}
+
+.btn-danger{
+
+    --bs-btn-bg: var(--cor-destaque);
+    --bs-btn-border-color: var(--cor-destaque);
+    --bs-btn-hover-bg: var(--cor-destaque-escura);
+    --bs-btn-hover-border-color: var(--cor-destaque-escura);
+    --bs-btn-active-bg: var(--cor-destaque-escura);
+    --bs-btn-active-border-color: var(--cor-destaque-escura);
+
+}
+
+.btn-secondary,
+.btn-outline-secondary{
+
+    --bs-btn-color: var(--cor-texto-muted);
+    --bs-btn-border-color: var(--cor-borda);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--cor-texto-muted);
+    --bs-btn-hover-border-color: var(--cor-texto-muted);
+
+}
+
+.btn-secondary{
+
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--cor-texto-muted);
+    --bs-btn-border-color: var(--cor-texto-muted);
+
+}
+
+.form-control:focus{
+
+    border-color: var(--cor-primaria);
+    box-shadow: 0 0 0 .25rem var(--cor-primaria-clara);
+
+}
+
+.painel,
+.tela-escura{
+
+    background: var(--painel-bg);
 
     min-height:100vh;
 
 }
 
+.tela-escura .btn-outline-secondary{
+
+    --bs-btn-color: var(--painel-fg);
+    --bs-btn-border-color: var(--painel-fg-muted);
+    --bs-btn-hover-color: var(--painel-bg);
+    --bs-btn-hover-bg: var(--painel-fg);
+    --bs-btn-hover-border-color: var(--painel-fg);
+
+}
+
+.painel .painel-cabecalho{
+
+    padding: var(--espaco-xl) var(--espaco-lg) 0;
+
+}
+
 .painel h1{
 
-    color:white;
+    color: var(--painel-fg);
 
-    font-weight:bold;
+    font-weight: 800;
+    letter-spacing: .04em;
+
+}
+
+.painel .painel-linha{
+
+    width: 120px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--status-pronto);
+    margin: var(--espaco-md) auto 0;
+
+}
+
+.painel .painel-vazio{
+
+    color: var(--painel-fg-muted);
+    font-size: var(--fonte-lg);
+    font-weight: 600;
 
 }
 
 #lista-prontos .card{
 
-    border:4px solid #198754;
+    background: var(--painel-card-bg);
+    border: 1px solid var(--painel-borda);
+    border-top: 6px solid var(--status-pronto);
+    border-radius: var(--raio-borda);
 
 }
 
 #lista-prontos .card-body{
 
-    padding:40px;
+    padding: 40px;
 
 }
 
 #lista-prontos h1{
 
-    color:#198754;
+    color: var(--painel-texto);
 
-    font-size:6rem;
+    font-size:9rem;
 
     font-weight:bold;
+
+    line-height: 1;
+
+}
+
+#lista-prontos h4{
+
+    color: var(--painel-texto);
+
+    font-weight: bold;
+
+    font-size: var(--fonte-xxl);
 
 }
 
@@ -82,6 +229,8 @@ button{
 
     font-size:1.1rem;
 
+    font-weight: bold;
+
     margin-bottom:6px;
 
 }
@@ -94,9 +243,9 @@ button{
 
 .observacao-cozinha{
 
-    background:#fff3cd;
+    background: var(--status-preparo-bg);
 
-    border-left:4px solid #ffc107;
+    border-left:4px solid var(--status-preparo);
 
     padding:10px 14px;
 
@@ -107,5 +256,270 @@ button{
     font-size:1rem;
 
     word-wrap:break-word;
+
+}
+
+.historico-card{
+
+    border:2px solid var(--cor-borda);
+
+}
+
+.historico-card .card-body h3{
+
+    color: var(--cor-texto-muted);
+
+}
+
+.historico-itens{
+
+    padding-left:20px;
+
+}
+
+.historico-itens li{
+
+    font-size:1.1rem;
+
+    margin-bottom:6px;
+
+}
+
+.historico-total{
+
+    font-size: var(--fonte-lg);
+    color: var(--cor-primaria);
+
+}
+
+.historico-total-geral{
+
+    display: flex;
+    align-items: center;
+    gap: var(--espaco-sm);
+    background: var(--cor-primaria-clara);
+    border-radius: var(--raio-borda-sm);
+    padding: var(--espaco-sm) var(--espaco-lg);
+    font-size: var(--fonte-md);
+
+}
+
+.historico-total-geral strong{
+
+    color: var(--cor-primaria);
+    font-size: var(--fonte-lg);
+
+}
+
+/* Preço do produto e total do pedido (tela do Atendente) */
+
+.produto-preco{
+
+    color: var(--cor-texto-muted);
+    font-size: var(--fonte-sm);
+
+}
+
+.pedido-total{
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--cor-primaria-clara);
+    border-radius: var(--raio-borda-sm);
+    padding: var(--espaco-md) var(--espaco-lg);
+    margin-bottom: var(--espaco-md);
+    font-size: var(--fonte-lg);
+
+}
+
+.pedido-total strong{
+
+    color: var(--cor-primaria);
+    font-size: var(--fonte-xl);
+
+}
+
+/* Cabeçalho padrão, compartilhado por todas as telas */
+
+.topbar{
+
+    background: var(--cor-primaria);
+    color: #fff;
+    padding: var(--espaco-sm) var(--espaco-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+    flex-wrap: wrap;
+    gap: var(--espaco-xs);
+
+}
+
+.topbar__brand{
+
+    font-weight: 800;
+    font-size: var(--fonte-md);
+    letter-spacing: .02em;
+
+}
+
+.topbar__pagina{
+
+    font-weight: 600;
+    font-size: var(--fonte-sm);
+    opacity: .9;
+
+}
+
+.topbar a.btn{
+
+    min-height: auto;
+
+}
+
+/* Lista de produtos (tela do Atendente) */
+
+.produto-linha{
+
+    padding: var(--espaco-sm) var(--espaco-xs);
+    border-radius: var(--raio-borda-sm);
+    transition: background-color .15s ease;
+
+}
+
+.produto-linha--ativo{
+
+    background: var(--cor-primaria-clara);
+
+}
+
+.produto-qtd{
+
+    display: inline-block;
+    min-width: 2ch;
+    text-align: center;
+    font-size: var(--fonte-lg);
+    font-weight: bold;
+    color: var(--cor-texto-muted);
+    vertical-align: middle;
+
+}
+
+.produto-linha--ativo .produto-qtd{
+
+    color: var(--cor-primaria);
+
+}
+
+.btn-stepper{
+
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    line-height: 1;
+    border: 2px solid transparent;
+
+}
+
+.btn-stepper--mais{
+
+    background: var(--cor-primaria);
+    border-color: var(--cor-primaria);
+    color: #fff;
+
+}
+
+.btn-stepper--mais:hover{
+
+    background: var(--cor-primaria-escura);
+    border-color: var(--cor-primaria-escura);
+    color: #fff;
+
+}
+
+.btn-stepper--menos{
+
+    background: transparent;
+    border-color: var(--cor-borda);
+    color: var(--cor-texto-muted);
+
+}
+
+.btn-stepper--menos:hover{
+
+    border-color: var(--cor-destaque);
+    color: var(--cor-destaque);
+
+}
+
+/* Badges e cards de status do pedido (tela da Cozinha) */
+
+.status-badge{
+
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: var(--fonte-sm);
+    font-weight: 700;
+    letter-spacing: .02em;
+
+}
+
+.status-badge--aguardando{
+
+    background: var(--status-aguardando-bg);
+    color: var(--status-aguardando);
+
+}
+
+.status-badge--preparo{
+
+    background: var(--status-preparo-bg);
+    color: var(--status-preparo);
+
+}
+
+.status-badge--pronto{
+
+    background: var(--status-pronto-bg);
+    color: var(--status-pronto);
+
+}
+
+.status-badge--entregue{
+
+    background: var(--status-entregue-bg);
+    color: var(--status-entregue);
+
+}
+
+.pedido-card{
+
+    border-left: 6px solid var(--status-aguardando);
+
+}
+
+.pedido-card--aguardando{
+
+    border-left-color: var(--status-aguardando);
+
+}
+
+.pedido-card--preparo{
+
+    border-left-color: var(--status-preparo);
+
+}
+
+.pedido-card--pronto{
+
+    border-left-color: var(--status-pronto);
 
 }

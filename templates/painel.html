@@ -12,6 +12,7 @@
     <link href="/static/bootstrap.min.css"
           rel="stylesheet">
 
+    <link rel="stylesheet" href="/static/tokens.css">
     <link rel="stylesheet" href="/static/style.css">
 
 </head>
@@ -20,13 +21,15 @@
 
 <div class="container-fluid">
 
-    <div class="text-center mt-4">
+    <div class="text-center painel-cabecalho">
 
         <h1 class="display-3">
 
             PEDIDOS PRONTOS
 
         </h1>
+
+        <div class="painel-linha"></div>
 
     </div>
 
@@ -50,9 +53,7 @@
 
 <script>
 
-const ws = new WebSocket(
-    "ws://" + window.location.host + "/ws"
-);
+let ws;
 
 const pedidos = new Map();
 
@@ -63,11 +64,27 @@ function desenharPainel() {
 
     lista.innerHTML = "";
 
-    pedidos.forEach(function(pedido) {
+    const prontos = Array.from(pedidos.values()).filter(function(pedido) {
 
-        if (pedido.status !== "PRONTO") {
-            return;
-        }
+        return pedido.status === "PRONTO";
+
+    });
+
+    if (prontos.length === 0) {
+
+        lista.innerHTML = `
+
+            <div class="painel-vazio mt-5">
+                Nenhum pedido pronto no momento.
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+    prontos.forEach(function(pedido) {
 
         lista.innerHTML += `
 
@@ -83,7 +100,7 @@ function desenharPainel() {
 
                         </h1>
 
-                        <h4 class="text-muted mt-2">
+                        <h4 class="mt-2">
 
                             ${pedido.cliente}
 
@@ -117,94 +134,103 @@ function tocarSom() {
 }
 
 
-ws.onmessage = function(event) {
+function conectar() {
 
-    const mensagem = JSON.parse(event.data);
+    ws = new WebSocket(
+        "ws://" + window.location.host + "/ws"
+    );
 
-    switch (mensagem.tipo) {
+    ws.onmessage = function(event) {
 
-        case "lista":
+        const mensagem = JSON.parse(event.data);
 
-            pedidos.clear();
+        switch (mensagem.tipo) {
 
-            mensagem.pedidos.forEach(function(pedido) {
+            case "lista":
+
+                pedidos.clear();
+
+                mensagem.pedidos.forEach(function(pedido) {
+
+                    pedidos.set(
+
+                        pedido.numero,
+
+                        pedido
+
+                    );
+
+                });
+
+                desenharPainel();
+
+                break;
+
+
+            case "novo":
 
                 pedidos.set(
 
-                    pedido.numero,
+                    mensagem.pedido.numero,
 
-                    pedido
+                    mensagem.pedido
 
                 );
 
-            });
+                desenharPainel();
 
-            desenharPainel();
-
-            break;
+                break;
 
 
-        case "novo":
+            case "preparo":
 
-            pedidos.set(
+                if (pedidos.has(mensagem.numero)) {
 
-                mensagem.pedido.numero,
+                    pedidos.get(mensagem.numero).status = "PREPARO";
 
-                mensagem.pedido
+                    desenharPainel();
 
-            );
+                }
 
-            desenharPainel();
-
-            break;
+                break;
 
 
-        case "preparo":
+            case "pronto":
 
-            if (pedidos.has(mensagem.numero)) {
+                if (pedidos.has(mensagem.numero)) {
 
-                pedidos.get(mensagem.numero).status = "PREPARO";
+                    pedidos.get(mensagem.numero).status = "PRONTO";
+
+                    tocarSom();
+
+                    desenharPainel();
+
+                }
+
+                break;
+
+
+            case "entregue":
+
+                pedidos.delete(mensagem.numero);
 
                 desenharPainel();
 
-            }
+                break;
 
-            break;
+        }
 
+    };
 
-        case "pronto":
+    ws.onclose = function() {
 
-            if (pedidos.has(mensagem.numero)) {
+        setTimeout(conectar, 2000);
 
-                pedidos.get(mensagem.numero).status = "PRONTO";
+    };
 
-                tocarSom();
+}
 
-                desenharPainel();
-
-            }
-
-            break;
-
-
-        case "entregue":
-
-            pedidos.delete(mensagem.numero);
-
-            desenharPainel();
-
-            break;
-
-    }
-
-};
-
-
-ws.onclose = function() {
-
-    alert("Conexão com o servidor perdida.");
-
-};
+conectar();
 
 </script>
 

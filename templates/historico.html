@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Histórico de Pedidos</title>
+
+    <link href="/static/bootstrap.min.css"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/tokens.css">
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<header class="topbar">
+    <span class="topbar__brand">Cantina</span>
+    <span class="topbar__pagina">Histórico de Pedidos</span>
+</header>
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+
+        <a href="/cozinha" class="btn btn-outline-secondary">
+
+            ← Voltar para Cozinha
+
+        </a>
+
+        <div class="historico-total-geral">
+
+            <span>Total arrecadado</span>
+
+            <strong id="total-geral">R$ 0,00</strong>
+
+        </div>
+
+    </div>
+
+    <div id="historico-vazio" class="text-center text-muted py-5" style="display: none;">
+
+        <h4>Nenhum pedido entregue ainda.</h4>
+
+    </div>
+
+    <div id="lista-historico" class="row g-3"></div>
+
+</div>
+
+<script>
+
+const pedidosIniciais = {{ pedidos | tojson }};
+
+const pedidos = new Map();
+
+let ws;
+
+function formatarMoeda(valor) {
+
+    return "R$ " + valor.toFixed(2).replace(".", ",");
+
+}
+
+function criarCard(pedido) {
+
+    let itens = "";
+
+    pedido.itens.forEach(function(item) {
+
+        let desc = "";
+
+        if (item.descricao && item.descricao.trim() !== "") {
+
+            desc = `<br><small class="text-muted">→ ${item.descricao}</small>`;
+
+        }
+
+        itens += `
+            <li>
+                ${item.quantidade}x ${item.produto}${desc}
+            </li>
+        `;
+
+    });
+
+    const observacao = (pedido.observacao && pedido.observacao.trim() !== "") ? `
+        <div class="observacao-cozinha">
+            <strong>Obs:</strong> ${pedido.observacao}
+        </div>
+    ` : "";
+
+    return `
+
+    <div class="col-lg-4 col-md-6">
+
+        <div class="card shadow h-100 historico-card">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <h3>Pedido #${pedido.numero}</h3>
+
+                    <span class="status-badge status-badge--entregue">Entregue</span>
+
+                </div>
+
+                <p><strong>Cliente:</strong> ${pedido.cliente}</p>
+
+                <p><strong>Criado:</strong> ${pedido.hora}</p>
+
+                <p><strong>Entregue:</strong> ${pedido.hora_entrega}</p>
+
+                <hr>
+
+                <ul class="historico-itens">
+
+                    ${itens}
+
+                </ul>
+
+                ${observacao}
+
+                <p class="historico-total">
+
+                    <strong>Total:</strong> ${formatarMoeda(pedido.total)}
+
+                </p>
+
+                <form method="post" action="/historico/${pedido.numero}/restaurar">
+
+                    <button type="submit" class="btn btn-outline-secondary w-100 mt-2">
+
+                        ↩ Restaurar para Cozinha
+
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    `;
+
+}
+
+function atualizarTotalGeral() {
+
+    let total = 0;
+
+    pedidos.forEach(function(pedido) {
+
+        total += pedido.total;
+
+    });
+
+    document.getElementById("total-geral").innerText = formatarMoeda(total);
+
+}
+
+function desenharLista() {
+
+    const container = document.getElementById("lista-historico");
+
+    const vazio = document.getElementById("historico-vazio");
+
+    container.innerHTML = "";
+
+    if (pedidos.size === 0) {
+
+        vazio.style.display = "";
+
+    } else {
+
+        vazio.style.display = "none";
+
+        Array.from(pedidos.values())
+            .sort(function(a, b) {
+                return (b.hora_entrega || "").localeCompare(a.hora_entrega || "");
+            })
+            .forEach(function(pedido) {
+
+                container.innerHTML += criarCard(pedido);
+
+            });
+
+    }
+
+    atualizarTotalGeral();
+
+}
+
+pedidosIniciais.forEach(function(pedido) {
+
+    pedidos.set(pedido.numero, pedido);
+
+});
+
+desenharLista();
+
+function conectar() {
+
+    ws = new WebSocket(
+        "ws://" + window.location.host + "/ws"
+    );
+
+    ws.onmessage = function(event) {
+
+        const mensagem = JSON.parse(event.data);
+
+        if (mensagem.tipo === "entregue" && mensagem.pedido) {
+
+            pedidos.set(mensagem.pedido.numero, mensagem.pedido);
+
+            desenharLista();
+
+        } else if (mensagem.tipo === "novo" && pedidos.has(mensagem.pedido.numero)) {
+
+            pedidos.delete(mensagem.pedido.numero);
+
+            desenharLista();
+
+        }
+
+    };
+
+    ws.onclose = function() {
+
+        setTimeout(conectar, 2000);
+
+    };
+
+}
+
+conectar();
+
+</script>
+
+</body>
+
+</html>

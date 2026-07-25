@@ -12,19 +12,29 @@
     <link href="/static/bootstrap.min.css"
           rel="stylesheet">
 
+    <link rel="stylesheet" href="/static/tokens.css">
     <link rel="stylesheet" href="/static/style.css">
 
 </head>
 
-<body>
+<body class="tela-escura">
+
+<header class="topbar">
+    <span class="topbar__brand">Cantina</span>
+    <span class="topbar__pagina">Pedidos da Cozinha</span>
+</header>
 
 <div class="container py-4">
 
-    <h1 class="text-center mb-4">
+    <div class="text-center mb-4">
 
-        Pedidos da Cozinha
+        <a href="/historico" class="btn btn-outline-secondary">
 
-    </h1>
+            Ver Histórico
+
+        </a>
+
+    </div>
 
     <div
         id="pedidos"
@@ -37,12 +47,29 @@
 
 <script>
 
-const ws = new WebSocket(
-    "ws://" + window.location.host + "/ws"
-);
+let ws;
 
 const pedidos = new Map();
 
+const STATUS_MODIFICADOR = {
+
+    AGUARDANDO: "aguardando",
+    PREPARO: "preparo",
+    PRONTO: "pronto"
+
+};
+
+function statusModificador(status) {
+
+    return STATUS_MODIFICADOR[status] || "aguardando";
+
+}
+
+function statusBadge(status) {
+
+    return `<span class="status-badge status-badge--${statusModificador(status)}">${status}</span>`;
+
+}
 
 function criarCard(pedido) {
 
@@ -73,7 +100,7 @@ function criarCard(pedido) {
         id="pedido-${pedido.numero}"
     >
 
-        <div class="card shadow h-100">
+        <div class="card shadow h-100 pedido-card pedido-card--${statusModificador(pedido.status)}">
 
             <div class="card-body">
 
@@ -117,11 +144,9 @@ function criarCard(pedido) {
 
                     <strong>Status:</strong>
 
-                    <span
-                        id="status-${pedido.numero}"
-                    >
+                    <span id="status-${pedido.numero}">
 
-                        ${pedido.status}
+                        ${statusBadge(pedido.status)}
 
                     </span>
 
@@ -165,6 +190,32 @@ function criarCard(pedido) {
     </div>
 
     `;
+
+}
+
+function atualizarStatusNaTela(numero, status) {
+
+    const spanStatus = document.getElementById("status-" + numero);
+
+    if (spanStatus) {
+
+        spanStatus.innerHTML = statusBadge(status);
+
+    }
+
+    const card = document.querySelector("#pedido-" + numero + " .pedido-card");
+
+    if (card) {
+
+        card.classList.remove(
+            "pedido-card--aguardando",
+            "pedido-card--preparo",
+            "pedido-card--pronto"
+        );
+
+        card.classList.add("pedido-card--" + statusModificador(status));
+
+    }
 
 }
 
@@ -222,90 +273,95 @@ function entregue(numero) {
 }
 
 
-ws.onmessage = function(event) {
+function conectar() {
 
-    const mensagem = JSON.parse(event.data);
+    ws = new WebSocket(
+        "ws://" + window.location.host + "/ws"
+    );
 
-    switch (mensagem.tipo) {
+    ws.onmessage = function(event) {
 
-        case "lista":
+        const mensagem = JSON.parse(event.data);
 
-            pedidos.clear();
+        switch (mensagem.tipo) {
 
-            mensagem.pedidos.forEach(function(pedido) {
+            case "lista":
 
-                pedidos.set(pedido.numero, pedido);
+                pedidos.clear();
 
-            });
+                mensagem.pedidos.forEach(function(pedido) {
 
-            desenharPedidos();
+                    pedidos.set(pedido.numero, pedido);
 
-            break;
+                });
 
+                desenharPedidos();
 
-        case "novo":
-
-            pedidos.set(
-
-                mensagem.pedido.numero,
-
-                mensagem.pedido
-
-            );
-
-            desenharPedidos();
-
-            break;
+                break;
 
 
-        case "preparo":
+            case "novo":
 
-            if (pedidos.has(mensagem.numero)) {
+                pedidos.set(
 
-                pedidos.get(mensagem.numero).status = "PREPARO";
+                    mensagem.pedido.numero,
 
-                document.getElementById(
-                    "status-" + mensagem.numero
-                ).innerText = "PREPARO";
+                    mensagem.pedido
 
-            }
+                );
 
-            break;
+                desenharPedidos();
 
-
-        case "pronto":
-
-            if (pedidos.has(mensagem.numero)) {
-
-                pedidos.get(mensagem.numero).status = "PRONTO";
-
-                document.getElementById(
-                    "status-" + mensagem.numero
-                ).innerText = "PRONTO";
-
-            }
-
-            break;
+                break;
 
 
-        case "entregue":
+            case "preparo":
 
-            pedidos.delete(mensagem.numero);
+                if (pedidos.has(mensagem.numero)) {
 
-            desenharPedidos();
+                    pedidos.get(mensagem.numero).status = "PREPARO";
 
-            break;
+                    atualizarStatusNaTela(mensagem.numero, "PREPARO");
 
-    }
+                }
 
-};
+                break;
 
 
-ws.onclose = function() {
+            case "pronto":
 
-    alert("Conexão perdida.");
+                if (pedidos.has(mensagem.numero)) {
 
-};
+                    pedidos.get(mensagem.numero).status = "PRONTO";
+
+                    atualizarStatusNaTela(mensagem.numero, "PRONTO");
+
+                }
+
+                break;
+
+
+            case "entregue":
+
+                pedidos.delete(mensagem.numero);
+
+                desenharPedidos();
+
+                break;
+
+        }
+
+    };
+
+    ws.onclose = function() {
+
+        setTimeout(conectar, 2000);
+
+    };
+
+}
+
+conectar();
 
 </script>
 
