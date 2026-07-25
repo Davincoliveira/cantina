@@ -1,35 +1,133 @@
-1. Criar ambiente virtual
+# Cantina — Sistema de Pedidos
 
-python -m venv venv
+Sistema web para organizar pedidos de uma cantina durante eventos.
 
-2. Ativar
+Conecta três telas em tempo real:
 
-Linux
+- **Atendente** — registra novos pedidos
+- **Cozinha** — visualiza e prepara os pedidos
+- **Painel** — mostra aos clientes quais pedidos estão prontos para retirada
 
-source venv/bin/activate
+Todos os dispositivos se comunicam instantaneamente via WebSocket. Não é necessário atualizar a página.
 
-Windows
+---
 
-venv\Scripts\activate
+## Funcionalidades
 
-3. Instalar dependências
+- Pedidos numerados de **1 a 300**, cada número usado apenas uma vez
+- Fluxo completo: `AGUARDANDO → PREPARO → PRONTO → ENTREGUE`
+- Confirmação visual ao enviar pedido
+- Alerta sonoro no painel quando um pedido fica pronto
+- Dados persistidos em SQLite (sobrevive a reinicializações)
+- Funciona **sem internet** — apenas rede local
 
-pip install -r requirements.txt
+---
 
-4. Executar
+## Pré-requisitos
 
-uvicorn app:app --reload
+- [Docker](https://docs.docker.com/get-docker/) instalado
 
-5. Acessar
+Não é necessário instalar Python, pip ou qualquer dependência manualmente.
 
-Atendente
+---
 
-http://localhost:8000
+## Como utilizar
 
-Cozinha
+### 1. Clonar o repositório
 
-http://localhost:8000/cozinha
+```bash
+git clone https://github.com/SEU-LOGIN/cantina.git
+cd cantina
+```
 
-Painel
+### 2. Subir o sistema
 
-http://localhost:8000/painel
+```bash
+docker compose up -d --build
+```
+
+### 3. Acessar as telas
+
+Descubra o IP da máquina que está rodando o servidor:
+
+```bash
+# Linux
+hostname -I
+
+# Windows
+ipconfig
+```
+
+Acesse nos dispositivos:
+
+| Finalidade | URL |
+|---|---|
+| Atendente | `http://localhost:8000` |
+| Cozinha | `http://localhost:8000/cozinha` |
+| Painel (TV/projetor) | `http://localhost:8000/painel` |
+
+> Todos os dispositivos devem estar na **mesma rede WiFi**.
+
+### 4. Parar o sistema
+
+```bash
+docker compose stop
+```
+
+Os dados são preservados.
+
+### 5. Reiniciar
+
+```bash
+docker compose start
+```
+
+### 6. Limpar tudo (apagar pedidos)
+
+```bash
+docker compose down -v
+```
+
+---
+
+## Fluxo de uso
+
+```
+1. Cliente faz pedido
+        ↓
+2. Atendente registra na tela
+        ↓
+3. Cozinha recebe automaticamente
+        ↓
+4. Cozinha clica "Iniciar preparo"
+        ↓
+5. Cozinha clica "Pronto"
+        ↓
+6. Número aparece no painel + som
+        ↓
+7. Cliente vê seu número e vai ao balcão
+        ↓
+8. Cozinha entrega e clica "Entregue"
+```
+
+---
+
+## Estrutura do projeto
+
+```
+cantina/
+├── app.py                 # Backend (FastAPI + WebSocket + SQLite)
+├── requirements.txt       # Dependências Python
+├── Dockerfile             # Configuração da imagem Docker
+├── docker-compose.yml     # Orquestração do container
+├── templates/
+│   ├── atendente.html     # Tela do atendente
+│   ├── cozinha.html       # Tela da cozinha
+│   └── painel.html        # Painel público
+└── static/
+    ├── style.css          # Estilos
+    ├── bootstrap.min.css  # Bootstrap (local)
+    ├── bootstrap.bundle.min.js
+    └── sons/
+        └── pronto.mp3     # Som de alerta
+```
