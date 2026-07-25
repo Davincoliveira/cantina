@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Cantina - Atendente</title>
+
+    <link href="/static/bootstrap.min.css"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
+    <div id="confirmacao" class="toast align-items-center text-bg-success border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body fs-5 fw-bold">
+                Pedido enviado com sucesso!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<div class="container py-4">
+
+    <h1 class="text-center mb-4">
+        Novo Pedido
+    </h1>
+
+    <div class="card shadow">
+
+        <div class="card-body">
+
+            <div class="mb-4">
+
+                <label class="form-label">
+
+                    Nome do Cliente (Opcional)
+
+                </label>
+
+                <input
+                    id="cliente"
+                    type="text"
+                    class="form-control"
+                    placeholder="Ex.: João"
+                >
+
+            </div>
+
+            <hr>
+
+            <h4 class="mb-3">
+
+                Produtos
+
+            </h4>
+
+            <div id="lista-produtos">
+
+                {% for produto in produtos %}
+
+                <div class="row align-items-center mb-3">
+
+                    <div class="col-6">
+
+                        <strong>{{ produto }}</strong>
+
+                    </div>
+
+                    <div class="col-6 text-end">
+
+                        <button
+                            class="btn btn-danger"
+                            onclick="alterar('{{ produto }}', -1)"
+                        >
+                            −
+                        </button>
+
+                        <span
+                            id="{{ produto }}"
+                            class="mx-3 fw-bold"
+                        >
+                            0
+                        </span>
+
+                        <button
+                            class="btn btn-success"
+                            onclick="alterar('{{ produto }}', 1)"
+                        >
+                            +
+                        </button>
+
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+            <hr>
+
+            <button
+
+                class="btn btn-primary btn-lg w-100"
+
+                onclick="enviarPedido()"
+
+            >
+
+                Enviar Pedido
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const ws = new WebSocket(
+    "ws://" + window.location.host + "/ws"
+);
+
+let pedido = {};
+
+function alterar(produto, valor) {
+
+    if (!(produto in pedido)) {
+
+        pedido[produto] = 0;
+
+    }
+
+    pedido[produto] += valor;
+
+    if (pedido[produto] < 0) {
+
+        pedido[produto] = 0;
+
+    }
+
+    document.getElementById(produto).innerText = pedido[produto];
+
+}
+
+
+function enviarPedido() {
+
+    let itens = [];
+
+    for (let produto in pedido) {
+
+        if (pedido[produto] > 0) {
+
+            itens.push({
+
+                produto: produto,
+
+                quantidade: pedido[produto]
+
+            });
+
+        }
+
+    }
+
+    if (itens.length === 0) {
+
+        alert("Selecione pelo menos um produto.");
+
+        return;
+
+    }
+
+    const cliente = document
+        .getElementById("cliente")
+        .value
+        .trim();
+
+    ws.send(JSON.stringify({
+
+        tipo: "novo",
+
+        cliente: cliente,
+
+        itens: itens
+
+    }));
+
+    limparFormulario();
+
+    const toast = new bootstrap.Toast(
+        document.getElementById("confirmacao")
+    );
+    toast.show();
+
+}
+
+
+function limparFormulario() {
+
+    document.getElementById("cliente").value = "";
+
+    pedido = {};
+
+    const spans = document.querySelectorAll("#lista-produtos span");
+
+    spans.forEach(function(span) {
+
+        span.innerText = "0";
+
+    });
+
+}
+
+
+ws.onopen = function() {
+
+    console.log("Conectado.");
+
+};
+
+
+ws.onclose = function() {
+
+    alert("Conexão com o servidor perdida.");
+
+};
+
+
+ws.onerror = function() {
+
+    alert("Erro na conexão.");
+
+};
+
+
+ws.onmessage = function(event) {
+
+    const msg = JSON.parse(event.data);
+
+    if (msg.tipo === "limite") {
+
+        alert("Limite de 300 pedidos atingido!");
+
+    }
+
+};
+
+</script>
+
+<script src="/static/bootstrap.bundle.min.js"></script>
+
+</body>
+
+</html>

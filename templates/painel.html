@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Painel de Pedidos</title>
+
+    <link href="/static/bootstrap.min.css"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body class="painel">
+
+<div class="container-fluid">
+
+    <div class="text-center mt-4">
+
+        <h1 class="display-3">
+
+            PEDIDOS PRONTOS
+
+        </h1>
+
+    </div>
+
+    <div
+
+        id="lista-prontos"
+
+        class="row justify-content-center mt-5"
+
+    >
+
+    </div>
+
+</div>
+
+<audio
+    id="som"
+    src="/static/sons/pronto.mp3"
+    preload="auto">
+</audio>
+
+<script>
+
+const ws = new WebSocket(
+    "ws://" + window.location.host + "/ws"
+);
+
+const pedidos = new Map();
+
+
+function desenharPainel() {
+
+    const lista = document.getElementById("lista-prontos");
+
+    lista.innerHTML = "";
+
+    pedidos.forEach(function(pedido) {
+
+        if (pedido.status !== "PRONTO") {
+            return;
+        }
+
+        lista.innerHTML += `
+
+            <div class="col-4 mb-4">
+
+                <div class="card shadow text-center">
+
+                    <div class="card-body">
+
+                        <h1 class="display-1">
+
+                            ${pedido.numero}
+
+                        </h1>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        `;
+
+    });
+
+}
+
+function tocarSom() {
+
+    const audio = document.getElementById("som");
+
+    audio.currentTime = 0;
+
+    audio.play().catch(function() {
+
+        // Alguns navegadores bloqueiam autoplay.
+        // O som será liberado após a primeira interação.
+
+    });
+
+}
+
+
+ws.onmessage = function(event) {
+
+    const mensagem = JSON.parse(event.data);
+
+    switch (mensagem.tipo) {
+
+        case "lista":
+
+            pedidos.clear();
+
+            mensagem.pedidos.forEach(function(pedido) {
+
+                pedidos.set(
+
+                    pedido.numero,
+
+                    pedido
+
+                );
+
+            });
+
+            desenharPainel();
+
+            break;
+
+
+        case "novo":
+
+            pedidos.set(
+
+                mensagem.pedido.numero,
+
+                mensagem.pedido
+
+            );
+
+            desenharPainel();
+
+            break;
+
+
+        case "preparo":
+
+            if (pedidos.has(mensagem.numero)) {
+
+                pedidos.get(mensagem.numero).status = "PREPARO";
+
+                desenharPainel();
+
+            }
+
+            break;
+
+
+        case "pronto":
+
+            if (pedidos.has(mensagem.numero)) {
+
+                pedidos.get(mensagem.numero).status = "PRONTO";
+
+                tocarSom();
+
+                desenharPainel();
+
+            }
+
+            break;
+
+
+        case "entregue":
+
+            pedidos.delete(mensagem.numero);
+
+            desenharPainel();
+
+            break;
+
+    }
+
+};
+
+
+ws.onclose = function() {
+
+    alert("Conexão com o servidor perdida.");
+
+};
+
+</script>
+
+</body>
+
+</html>

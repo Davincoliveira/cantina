@@ -1,0 +1,12 @@
+services:
+  cantina:
+    build: .
+    container_name: cantina
+    ports:
+      - "8000:8000"
+    volumes:
+      - cantina-data:/data
+    restart: unless-stopped
+
+volumes:
+  cantina-data:

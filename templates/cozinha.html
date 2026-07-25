@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Cozinha</title>
+
+    <link href="/static/bootstrap.min.css"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="container py-4">
+
+    <h1 class="text-center mb-4">
+
+        Pedidos da Cozinha
+
+    </h1>
+
+    <div
+        id="pedidos"
+        class="row g-3"
+    >
+
+    </div>
+
+</div>
+
+<script>
+
+const ws = new WebSocket(
+    "ws://" + window.location.host + "/ws"
+);
+
+const pedidos = new Map();
+
+
+function criarCard(pedido) {
+
+    let itens = "";
+
+    pedido.itens.forEach(function(item){
+
+        itens += `
+            <li>
+                ${item.quantidade}x ${item.produto}
+            </li>
+        `;
+
+    });
+
+    return `
+
+    <div
+        class="col-lg-4 col-md-6"
+        id="pedido-${pedido.numero}"
+    >
+
+        <div class="card shadow h-100">
+
+            <div class="card-body">
+
+                <h3>
+
+                    Pedido #${pedido.numero}
+
+                </h3>
+
+                <p>
+
+                    <strong>Cliente:</strong>
+                    ${pedido.cliente}
+
+                </p>
+
+                <p>
+
+                    <strong>Hora:</strong>
+                    ${pedido.hora}
+
+                </p>
+
+                <hr>
+
+                <ul>
+
+                    ${itens}
+
+                </ul>
+
+                <hr>
+
+                <p>
+
+                    <strong>Status:</strong>
+
+                    <span
+                        id="status-${pedido.numero}"
+                    >
+
+                        ${pedido.status}
+
+                    </span>
+
+                </p>
+
+                <div class="d-grid gap-2">
+
+                    <button
+                        class="btn btn-warning"
+                        onclick="preparo(${pedido.numero})"
+                    >
+
+                        Iniciar preparo
+
+                    </button>
+
+                    <button
+                        class="btn btn-success"
+                        onclick="pronto(${pedido.numero})"
+                    >
+
+                        Pronto
+
+                    </button>
+
+                    <button
+                        class="btn btn-secondary"
+                        onclick="entregue(${pedido.numero})"
+                    >
+
+                        Entregue
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    `;
+
+}
+
+function desenharPedidos() {
+
+    const container = document.getElementById("pedidos");
+
+    container.innerHTML = "";
+
+    pedidos.forEach(function(pedido) {
+
+        container.innerHTML += criarCard(pedido);
+
+    });
+
+}
+
+
+function preparo(numero) {
+
+    ws.send(JSON.stringify({
+
+        tipo: "preparo",
+
+        numero: numero
+
+    }));
+
+}
+
+
+function pronto(numero) {
+
+    ws.send(JSON.stringify({
+
+        tipo: "pronto",
+
+        numero: numero
+
+    }));
+
+}
+
+
+function entregue(numero) {
+
+    ws.send(JSON.stringify({
+
+        tipo: "entregue",
+
+        numero: numero
+
+    }));
+
+}
+
+
+ws.onmessage = function(event) {
+
+    const mensagem = JSON.parse(event.data);
+
+    switch (mensagem.tipo) {
+
+        case "lista":
+
+            pedidos.clear();
+
+            mensagem.pedidos.forEach(function(pedido) {
+
+                pedidos.set(pedido.numero, pedido);
+
+            });
+
+            desenharPedidos();
+
+            break;
+
+
+        case "novo":
+
+            pedidos.set(
+
+                mensagem.pedido.numero,
+
+                mensagem.pedido
+
+            );
+
+            desenharPedidos();
+
+            break;
+
+
+        case "preparo":
+
+            if (pedidos.has(mensagem.numero)) {
+
+                pedidos.get(mensagem.numero).status = "PREPARO";
+
+                document.getElementById(
+                    "status-" + mensagem.numero
+                ).innerText = "PREPARO";
+
+            }
+
+            break;
+
+
+        case "pronto":
+
+            if (pedidos.has(mensagem.numero)) {
+
+                pedidos.get(mensagem.numero).status = "PRONTO";
+
+                document.getElementById(
+                    "status-" + mensagem.numero
+                ).innerText = "PRONTO";
+
+            }
+
+            break;
+
+
+        case "entregue":
+
+            pedidos.delete(mensagem.numero);
+
+            desenharPedidos();
+
+            break;
+
+    }
+
+};
+
+
+ws.onclose = function() {
+
+    alert("Conexão perdida.");
+
+};
+
+</script>
+
+</body>
+
+</html>
