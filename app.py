@@ -28,11 +28,11 @@ PRODUTOS = [
     "Batata Frita (150g)",
     "Refrigerante em Lata",
     "Suco à Parte",
-    "Combo de Carne",
-    "Combo de Frango",
+    "McDUNCAN",
+    "McKALLEY"
 ]
 
-COMBOS = ["Combo de Carne", "Combo de Frango"]
+COMBOS = ["McDUNCAN", "McKALLEY"]
 
 PRECOS = {
     "Hambúrguer de Carne": 18.00,
@@ -40,8 +40,8 @@ PRECOS = {
     "Batata Frita (150g)": 8.00,
     "Refrigerante em Lata": 7.00,
     "Suco à Parte": 8.00,
-    "Combo de Carne": 28.00,
-    "Combo de Frango": 26.00,
+    "McDUNCAN": 28.50,
+    "McKALLEY": 26.50,
 }
 
 
