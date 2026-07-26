@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" href="/static/favicon.ico">
+
+    <title>Resumo do Dia</title>
+
+    <link href="/static/bootstrap.min.css"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/tokens.css">
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<header class="topbar">
+    <span class="topbar__brand">Cantina</span>
+    <span class="topbar__pagina">Resumo do dia</span>
+</header>
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+
+        <a href="/historico" class="btn btn-outline-secondary">
+
+            ← Voltar para Histórico
+
+        </a>
+
+        <div class="d-flex gap-2">
+
+            <button
+                class="btn btn-success"
+                onclick="copiarResumo()"
+            >
+                📋 Copiar Resumo
+            </button>
+
+            <form method="post" action="/resumo/apagar"
+                  onsubmit="return confirm('Tem certeza? Isso vai apagar TODOS os pedidos do dia.');">
+
+                <button type="submit" class="btn btn-danger">
+
+                    🗑 Apagar Registro do Dia
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <div id="resumo-vazio" class="text-center text-muted py-5" style="display: none;">
+
+        <h4>Nenhum pedido registrado hoje.</h4>
+
+    </div>
+
+    <div id="resumo-conteudo">
+
+        <div class="card shadow">
+
+            <div class="card-body">
+
+                <h3 class="text-center mb-4" id="titulo-resumo"></h3>
+
+                <div id="lista-pedidos"></div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <strong>Total de pedidos:</strong>
+
+                    <span id="total-pedidos"></span>
+
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2">
+
+                    <h4 class="mb-0"><strong>VALOR TOTAL:</strong></h4>
+
+                    <h4 class="mb-0 text-success" id="valor-total"></h4>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const pedidos = {{ pedidos | tojson }};
+
+function formatarMoeda(valor) {
+
+    return "R$ " + valor.toFixed(2).replace(".", ",");
+
+}
+
+function montarResumoTexto() {
+
+    const hoje = new Date();
+
+    const dia = String(hoje.getDate()).padStart(2, "0");
+
+    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+
+    const ano = hoje.getFullYear();
+
+    const dataFormatada = dia + "/" + mes + "/" + ano;
+
+    let texto = "RESUMO UMECDONALD's — " + dataFormatada + "\n";
+
+    texto += "================================\n\n";
+
+    let total = 0;
+
+    pedidos.forEach(function(pedido) {
+
+        texto += "#" + String(pedido.numero).padStart(3, "0") + "  " + pedido.cliente + "\n";
+
+        pedido.itens.forEach(function(item) {
+
+            let linha = "   " + item.quantidade + "x " + item.produto;
+
+            const subtotal = item.quantidade * item.preco_unitario;
+
+            linha += "  —  " + formatarMoeda(subtotal);
+
+            if (item.descricao && item.descricao.trim() !== "") {
+
+                linha += "  (" + item.descricao + ")";
+
+            }
+
+            texto += linha + "\n";
+
+        });
+
+        texto += "   Total: " + formatarMoeda(pedido.total) + "\n\n";
+
+        total += pedido.total;
+
+    });
+
+    texto += "================================\n";
+
+    texto += "Total arrecadado: " + formatarMoeda(total) + "\n";
+
+    texto += "Total de pedidos: " + pedidos.size + "\n";
+
+    return texto;
+
+}
+
+function desenharResumo() {
+
+    const vazio = document.getElementById("resumo-vazio");
+
+    const conteudo = document.getElementById("resumo-conteudo");
+
+    if (pedidos.size === 0) {
+
+        vazio.style.display = "";
+
+        conteudo.style.display = "none";
+
+        return;
+
+    }
+
+    vazio.style.display = "none";
+
+    conteudo.style.display = "";
+
+    const hoje = new Date();
+
+    const dia = String(hoje.getDate()).padStart(2, "0");
+
+    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+
+    const ano = hoje.getFullYear();
+
+    document.getElementById("titulo-resumo").innerText =
+
+        "Resumo do Dia — " + dia + "/" + mes + "/" + ano;
+
+    const container = document.getElementById("lista-pedidos");
+
+    container.innerHTML = "";
+
+    let total = 0;
+
+    pedidos.forEach(function(pedido) {
+
+        let itensHtml = "";
+
+        pedido.itens.forEach(function(item) {
+
+            const subtotal = item.quantidade * item.preco_unitario;
+
+            let desc = "";
+
+            if (item.descricao && item.descricao.trim() !== "") {
+
+                desc = ' <small class="text-muted">(' + item.descricao + ')</small>';
+
+            }
+
+            itensHtml += '<li>' + item.quantidade + 'x ' + item.produto + desc +
+
+                ' — <strong>' + formatarMoeda(subtotal) + '</strong></li>';
+
+        });
+
+        container.innerHTML +=
+
+            '<div class="mb-3 pb-3 border-bottom">' +
+
+                '<div class="d-flex justify-content-between">' +
+
+                    '<strong>#' + String(pedido.numero).padStart(3, "0") + ' — ' + pedido.cliente + '</strong>' +
+
+                    '<span>' + formatarMoeda(pedido.total) + '</span>' +
+
+                '</div>' +
+
+                '<ul class="mb-1 mt-1">' + itensHtml + '</ul>' +
+
+            '</div>';
+
+        total += pedido.total;
+
+    });
+
+    document.getElementById("total-pedidos").innerText = pedidos.size;
+
+    document.getElementById("valor-total").innerText = formatarMoeda(total);
+
+}
+
+function copiarResumo() {
+
+    const texto = montarResumoTexto();
+
+    navigator.clipboard.writeText(texto).then(function() {
+
+        alert("Resumo copiado para a área de transferência!");
+
+    }).catch(function() {
+
+        const area = document.createElement("textarea");
+
+        area.value = texto;
+
+        document.body.appendChild(area);
+
+        area.select();
+
+        document.execCommand("copy");
+
+        document.body.removeChild(area);
+
+        alert("Resumo copiado!");
+
+    });
+
+}
+
+desenharResumo();
+
+</script>
+
+</body>
+
+</html>

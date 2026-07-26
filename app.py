@@ -391,6 +391,25 @@ async def restaurar(numero: int):
     return RedirectResponse(url="/historico", status_code=303)
 
 
+@app.get("/resumo", response_class=HTMLResponse)
+async def resumo(request: Request):
+    db = get_db()
+    pedidos = listar_historico(db)
+    return templates.TemplateResponse(
+        "resumo.html", {"request": request, "pedidos": pedidos}
+    )
+
+
+@app.post("/resumo/apagar")
+async def apagar_resumo():
+    db = get_db()
+    db.execute("DELETE FROM itens")
+    db.execute("DELETE FROM pedidos")
+    db.execute("UPDATE contador SET valor = 1 WHERE id = 1")
+    db.commit()
+    return RedirectResponse(url="/resumo", status_code=303)
+
+
 # ============================================================
 # AÇÕES DOS PEDIDOS
 # ============================================================
