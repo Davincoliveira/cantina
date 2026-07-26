@@ -33,6 +33,14 @@
 
         <div class="painel-linha"></div>
 
+        <button
+            id="btn-som"
+            class="btn btn-outline-light btn-sm mt-3"
+            onclick="ativarSom()"
+        >
+            🔊 Ativar som
+        </button>
+
     </div>
 
     <div
@@ -47,11 +55,6 @@
 
 </div>
 
-<audio
-    id="som"
-    src="/static/sons/pronto.mp3"
-    preload="auto">
-</audio>
 
 <script>
 
@@ -59,6 +62,77 @@ let ws;
 
 const pedidos = new Map();
 
+let somAtivado = false;
+
+let audioCtx = null;
+
+let audioBuffer = null;
+
+
+function ativarSom() {
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    fetch("/static/sons/pronto.mp3")
+
+        .then(function(resp) { return resp.arrayBuffer(); })
+
+        .then(function(data) {
+
+            return audioCtx.decodeAudioData(data);
+
+        })
+
+        .then(function(buffer) {
+
+            audioBuffer = buffer;
+
+            somAtivado = true;
+
+            const btn = document.getElementById("btn-som");
+
+            btn.innerText = "Som ativado ✓";
+
+            btn.disabled = true;
+
+            btn.classList.remove("btn-outline-light");
+
+            btn.classList.add("btn-success");
+
+        })
+
+        .catch(function() {
+
+            document.getElementById("btn-som").innerText = "Erro ao carregar som";
+
+        });
+
+}
+
+
+function tocarSom() {
+
+    if (!somAtivado || !audioCtx || !audioBuffer) {
+
+        return;
+
+    }
+
+    if (audioCtx.state === "suspended") {
+
+        audioCtx.resume();
+
+    }
+
+    const source = audioCtx.createBufferSource();
+
+    source.buffer = audioBuffer;
+
+    source.connect(audioCtx.destination);
+
+    source.start(0);
+
+}
 
 function desenharPainel() {
 
@@ -115,21 +189,6 @@ function desenharPainel() {
             </div>
 
         `;
-
-    });
-
-}
-
-function tocarSom() {
-
-    const audio = document.getElementById("som");
-
-    audio.currentTime = 0;
-
-    audio.play().catch(function() {
-
-        // Alguns navegadores bloqueiam autoplay.
-        // O som será liberado após a primeira interação.
 
     });
 
